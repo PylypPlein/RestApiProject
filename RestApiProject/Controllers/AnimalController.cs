@@ -4,7 +4,7 @@ namespace RestApiProject.Controllers;
 
 [ApiController]
 [Route("api/animals")]
-public class StudentController : ControllerBase
+public class AnimalController : ControllerBase
 {
     [HttpGet("")]
     public IActionResult GetAllAnimals()
