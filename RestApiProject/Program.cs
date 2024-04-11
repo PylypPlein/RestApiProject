@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Mvc;
+using RestApiProject.DB;
+using RestApiProject.Models;
+
 var builder = WebApplication.CreateBuilder(args);
+
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -15,30 +20,60 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-var summaries = new[]
+app.MapGet("/api/animals", () =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    return Results.Ok(Db.Animals);
+});
 
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast")
-    .WithOpenApi();
+app.MapGet("/api/animals/{id:int}", (int id) =>
+{
+    var animal = Db.Animals.FirstOrDefault(a => a.Id == id);
+    return animal is null ? Results.NotFound() : Results.Ok(animal);
+});
+
+app.MapPost("/api/animals", ([FromBody] Animal animal) =>
+{
+    Db.Animals.Add(animal);
+    return Results.Created($"/api/animals/{animal.Id}", animal);
+});
+
+app.MapPut("/api/animals/{id:int}", (int id, [FromBody] Animal data) =>
+{
+    var animal = Db.Animals.FirstOrDefault(a => a.Id == id);
+    if (animal is null) return Results.NotFound($"Animal with id {id} not found");
+
+    animal.Name = data.Name;
+    animal.Category = data.Category;
+    animal.Weight = data.Weight;
+    animal.FurColor = data.FurColor;
+    return Results.Ok(animal);
+});
+
+app.MapDelete("/api/animals/{id:int}", (int id) =>
+{
+    var animal = Db.Animals.FirstOrDefault(a => a.Id == id);
+    if (animal is null) return Results.NotFound($"Animal with id {id} not found");
+
+    Db.Animals.Remove(animal);
+    return Results.Ok();
+});
+
+app.MapGet("/api/animals/{id:int}/visits", (int id) =>
+{
+    var visits = Db.Visits.Where(v => v.Animal.Id == id);
+    return Results.Ok(visits);
+});
+
+app.MapPost("/api/animals/{id:int}/visits", (int id, [FromBody] Visit visit) =>
+{
+    var animal = Db.Animals.FirstOrDefault(a => a.Id == id);
+    if (animal is null) return Results.NotFound($"Animal with id {id} not found");
+
+    visit.Animal = animal;
+    Db.Visits.Add(visit);
+    return Results.Created($"/api/animals/{id}/visits/{visit.Id}", visit);
+});
+
+app.UseHttpsRedirection();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
